@@ -9,17 +9,10 @@ export type ServiceTable = {
 }
 
 --// CONSTANTS
-local REMOTE_FOLDER_NAME = "remotes"
+local ROOT_REMOTE_FOLDER_NAME = "remotes"
 
 local utils = require(game:GetService("ReplicatedStorage"):WaitForChild("utils"))
 local packages = utils.Services.ReplicatedStorage.packages
-local remoteFolder = utils.Services.ReplicatedStorage:FindFirstChild(REMOTE_FOLDER_NAME)
-
-if not remoteFolder then
-    local newRemoteFolder = Instance.new("Folder", utils.Services.ReplicatedStorage)
-    newRemoteFolder.Name = REMOTE_FOLDER_NAME
-    remoteFolder = newRemoteFolder
-end
 
 --// DEPENDENCIES
 local comm = require(packages:WaitForChild("comm"))
@@ -32,16 +25,32 @@ Service.__index = Service
 function Service.new(serviceTable : ServiceTable)
     local self = setmetatable({}, Service)
 
-    local newServiceComm = serverComm.new(remoteFolder, serviceTable.Name)
+    local rootRemoteFolder = utils.Services.ReplicatedStorage:FindFirstChild(ROOT_REMOTE_FOLDER_NAME)
+    if not rootRemoteFolder then
+        local newRemoteFolder = Instance.new("Folder", utils.Services.ReplicatedStorage)
+        newRemoteFolder.Name = ROOT_REMOTE_FOLDER_NAME
+        rootRemoteFolder = newRemoteFolder
+    end
+
+    local serviceComm = serverComm.new(rootRemoteFolder, serviceTable.Name)
+    local serviceRemoteTable = {}
     for endpointIndex, clientEndpointItem in serviceTable.Client do
         if type(clientEndpointItem) == "string" then
-            newServiceComm:CreateSignal(clientEndpointItem)
+           local remoteEvent = serviceComm:CreateSignal(clientEndpointItem)
+           serviceRemoteTable[clientEndpointItem] = remoteEvent
         elseif type(clientEndpointItem) == "function" then
-            newServiceComm:BindFunction(endpointIndex, clientEndpointItem)
+           local remoteFunction =  serviceComm:BindFunction(endpointIndex, clientEndpointItem)
+           serviceRemoteTable[endpointIndex] = remoteFunction
         end
     end
 
+    serviceTable.Client = serviceRemoteTable
+    serviceTable.Init = nil
     return self
+end
+
+function Service:IsService(service)
+    return Service == getmetatable(service)
 end
 
 return Service
