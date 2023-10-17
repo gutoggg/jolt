@@ -32,8 +32,6 @@ Service.__index = Service
 function Service.new(serviceTable : ServiceTable)
     local self = setmetatable({}, Service)
 
-    print("Is creating a new service")
-
     local newServiceComm = serverComm.new(remoteFolder, serviceTable.Name)
     for endpointIndex, clientEndpointItem in serviceTable.Client do
         if type(clientEndpointItem) == "string" then
